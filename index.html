@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMULATION OF WINDOW AIR CONDITIONER</title>
+    <meta name="description" content="Interactive 3D simulation of Window Air Conditioner — Assembly, Working & Disassembly modes with realistic effects.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:'Inter',sans-serif;
+            background:#080818;
+            height:100vh;
+            overflow:hidden;
+            color:#d0d0e0;
+        }
+
+        /* ── Loading Screen ──────────────────────────── */
+        .loading-screen {
+            position:fixed; inset:0;
+            background:linear-gradient(135deg,#080828,#120838,#081838);
+            display:flex; align-items:center; justify-content:center;
+            flex-direction:column; z-index:9999; gap:24px;
+        }
+        .loading-logo {
+            font-size:48px;
+            animation:logoFloat 2s ease-in-out infinite;
+        }
+        @keyframes logoFloat {
+            0%,100%{ transform:translateY(0); }
+            50%{ transform:translateY(-12px); }
+        }
+        .loading-screen h1 {
+            color:#fff; font-size:22px; text-align:center;
+            text-shadow:0 0 30px rgba(102,126,234,0.6);
+            letter-spacing:3px; text-transform:uppercase;
+        }
+        .loading-bar-wrap {
+            width:460px; max-width:90vw; height:6px;
+            background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;
+        }
+        .loading-bar {
+            height:100%; width:0%;
+            background:linear-gradient(90deg,#667eea,#a855f7,#667eea);
+            background-size:200% 100%;
+            animation:barShimmer 1.5s infinite linear;
+            border-radius:3px; transition:width 0.4s ease;
+        }
+        @keyframes barShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        .loading-pct { color:rgba(255,255,255,0.9); font-size:20px; font-weight:700; }
+        .loading-text { color:rgba(255,255,255,0.55); font-size:13px; transition:all 0.3s; }
+        .loading-hint {
+            color:rgba(255,255,255,0.22); font-size:11px;
+            max-width:460px; text-align:center; line-height:1.6;
+        }
+        .loading-files {
+            display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
+            max-width:500px;
+        }
+        .loading-file-chip {
+            padding:3px 10px; border-radius:12px; font-size:10px; font-weight:600;
+            background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.35);
+            border:1px solid rgba(255,255,255,0.08); transition:all 0.3s;
+        }
+        .loading-file-chip.loading { background:rgba(168,85,247,0.2); color:#c084fc; border-color:rgba(168,85,247,0.4); }
+        .loading-file-chip.done { background:rgba(76,175,80,0.15); color:#66bb6a; border-color:rgba(76,175,80,0.3); }
+        .loading-file-chip.fail { background:rgba(244,67,54,0.15); color:#ef5350; border-color:rgba(244,67,54,0.3); }
+
+        /* ── App Layout ──────────────────────────── */
+        .app { display:none; flex-direction:column; height:100vh; }
+        .app-header {
+            background:linear-gradient(90deg,rgba(102,126,234,0.9),rgba(168,85,247,0.9));
+            color:#fff; padding:11px 24px; text-align:center;
+            font-size:17px; font-weight:800; letter-spacing:3px;
+            text-transform:uppercase;
+            box-shadow:0 4px 30px rgba(0,0,0,0.6);
+            position:relative; z-index:10;
+        }
+        .main { display:flex; flex:1; overflow:hidden; }
+
+        /* ── Left Panel ──────────────────────────── */
+        .left-panel {
+            width:260px; min-width:260px;
+            background:rgba(12,12,30,0.97);
+            border-right:1px solid rgba(102,126,234,0.2);
+            display:flex; flex-direction:column;
+        }
+        .panel-title {
+            padding:14px 18px; font-size:13px; font-weight:700;
+            color:#fff; text-transform:uppercase; letter-spacing:1.5px;
+            border-bottom:1px solid rgba(102,126,234,0.2);
+            background:rgba(102,126,234,0.08);
+        }
+        .comp-list { flex:1; overflow-y:auto; padding:8px; }
+        .comp-item {
+            display:flex; align-items:center; gap:10px;
+            padding:10px 12px; margin-bottom:3px;
+            border-radius:8px; cursor:pointer;
+            transition:all 0.3s ease;
+            border:1px solid transparent; font-size:12px;
+            user-select:none;
+        }
+        .comp-item:hover {
+            background:rgba(102,126,234,0.12);
+            border-color:rgba(102,126,234,0.25);
+            transform:translateX(3px);
+        }
+        .comp-num {
+            width:24px; height:24px; border-radius:50%;
+            background:rgba(102,126,234,0.25);
+            display:flex; align-items:center; justify-content:center;
+            font-size:10px; font-weight:700; color:#667eea; flex-shrink:0;
+        }
+        .comp-name { flex:1; font-weight:500; }
+        .comp-status { font-size:14px; flex-shrink:0; }
+        .comp-item.assembled { background:rgba(76,175,80,0.1); border-color:rgba(76,175,80,0.25); }
+        .comp-item.assembled .comp-num { background:rgba(76,175,80,0.3); color:#4caf50; }
+        .comp-item.current {
+            background:rgba(102,126,234,0.15); border-color:rgba(102,126,234,0.4);
+            box-shadow:0 0 15px rgba(102,126,234,0.15);
+            animation:pulseBorder 2s infinite;
+        }
+        .comp-item.current .comp-num { background:#667eea; color:#fff; }
+        .comp-item.locked { opacity:0.35; cursor:default; }
+        .comp-item.locked:hover { transform:none; background:transparent; border-color:transparent; }
+        @keyframes pulseBorder {
+            0%,100%{ border-color:rgba(102,126,234,0.25); }
+            50%{ border-color:rgba(102,126,234,0.7); }
+        }
+        .progress-bar-wrap {
+            padding:12px 16px; border-top:1px solid rgba(102,126,234,0.15);
+            font-size:11px; color:rgba(255,255,255,0.4);
+        }
+        .progress-track { height:5px; background:rgba(255,255,255,0.06); border-radius:3px; margin-top:6px; }
+        .progress-fill {
+            height:100%; background:linear-gradient(90deg,#667eea,#4caf50);
+            border-radius:3px; width:0%; transition:width 0.5s ease;
+        }
+
+        /* ── Center Panel ──────────────────────────── */
+        .center-panel { flex:1; display:flex; flex-direction:column; background:#080818; position:relative; }
+        #viewport { flex:1; display:block; width:100%; outline:none; }
+        .controls-bar {
+            display:flex; gap:8px; padding:10px 16px;
+            background:rgba(8,8,24,0.97);
+            border-top:1px solid rgba(102,126,234,0.15);
+            justify-content:center; flex-wrap:wrap;
+        }
+        .mode-btn {
+            padding:10px 26px; font-family:'Inter',sans-serif;
+            font-size:12px; font-weight:700;
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:8px; cursor:pointer;
+            transition:all 0.3s ease;
+            background:rgba(255,255,255,0.04);
+            color:rgba(255,255,255,0.6);
+            text-transform:uppercase; letter-spacing:1.2px;
+        }
+        .mode-btn:hover {
+            background:rgba(102,126,234,0.15);
+            border-color:rgba(102,126,234,0.4);
+            color:#fff; transform:translateY(-2px);
+            box-shadow:0 4px 15px rgba(102,126,234,0.25);
+        }
+        .mode-btn.active {
+            background:linear-gradient(135deg,#667eea,#764ba2);
+            border-color:transparent; color:#fff;
+            box-shadow:0 4px 20px rgba(102,126,234,0.4);
+        }
+        .mode-btn.rst { border-color:rgba(255,100,100,0.2); }
+        .mode-btn.rst:hover { background:rgba(255,100,100,0.15); border-color:rgba(255,100,100,0.4); color:#ff6666; }
+
+        /* ── Right Panel ──────────────────────────── */
+        .right-panel {
+            width:290px; min-width:290px;
+            background:rgba(12,12,30,0.97);
+            border-left:1px solid rgba(102,126,234,0.2);
+            display:flex; flex-direction:column;
+        }
+        .instr-content { flex:1; overflow-y:auto; padding:10px; }
+        .instr-step {
+            padding:10px 14px; margin-bottom:6px;
+            background:rgba(255,255,255,0.025);
+            border-radius:8px;
+            border-left:3px solid rgba(102,126,234,0.4);
+            font-size:12px; line-height:1.65;
+            animation:fadeSlide 0.35s ease;
+        }
+        .instr-step.done { border-left-color:#4caf50; background:rgba(76,175,80,0.05); }
+        .instr-step.next {
+            border-left-color:#ff8c00; background:rgba(255,140,0,0.06);
+            animation:pulseInstr 2s infinite;
+        }
+        .instr-step.warn { border-left-color:#f44336; background:rgba(244,67,54,0.06); }
+        .instr-step.info { border-left-color:#29b6f6; background:rgba(41,182,246,0.05); }
+        .instr-step strong { color:#8b9cf7; }
+        @keyframes fadeSlide { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulseInstr { 0%,100%{background:rgba(255,140,0,0.04)} 50%{background:rgba(255,140,0,0.12)} }
+
+        .status-bar {
+            padding:10px 14px; font-size:11px; font-weight:600;
+            text-align:center;
+            border-top:1px solid rgba(102,126,234,0.15);
+            transition:all 0.3s ease;
+            color:rgba(255,255,255,0.4);
+        }
+        .status-bar.ok { color:#4caf50; background:rgba(76,175,80,0.08); }
+        .status-bar.wrn { color:#ff9800; background:rgba(255,152,0,0.08); }
+        .status-bar.err { color:#f44336; background:rgba(244,67,54,0.08); }
+
+        /* ── Footer ──────────────────────────── */
+        .app-footer {
+            background:rgba(8,8,24,0.97);
+            color:rgba(255,255,255,0.3); padding:7px;
+            text-align:center; font-size:10px;
+            border-top:1px solid rgba(102,126,234,0.1);
+        }
+
+        /* ── Scrollbar ──────────────────────────── */
+        ::-webkit-scrollbar { width:5px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:rgba(102,126,234,0.25); border-radius:3px; }
+        ::-webkit-scrollbar-thumb:hover { background:rgba(102,126,234,0.45); }
+
+        /* ── Toast ──────────────────────────── */
+        .toast {
+            position:fixed; top:70px; left:50%; transform:translateX(-50%);
+            padding:12px 28px; border-radius:12px;
+            font-size:13px; font-weight:600; z-index:999;
+            pointer-events:none;
+            animation:toastIn 0.3s ease, toastOut 0.4s ease 2.2s forwards;
+            box-shadow:0 8px 30px rgba(0,0,0,0.5);
+            backdrop-filter:blur(8px);
+        }
+        .toast.ok { background:rgba(76,175,80,0.92); color:#fff; }
+        .toast.wrn { background:rgba(255,152,0,0.92); color:#fff; }
+        .toast.err { background:rgba(244,67,54,0.92); color:#fff; }
+        @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(-20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+        @keyframes toastOut { from{opacity:1} to{opacity:0} }
+    </style>
+</head>
+<body>
+    <!-- ═══════════════════ LOADING SCREEN ═══════════════════ -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-logo">❄️</div>
+        <h1>Simulation of Window Air Conditioner</h1>
+        <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
+        <div class="loading-pct" id="loadingPct">0%</div>
+        <div class="loading-text" id="loadingText">Initializing 3D engine...</div>
+        <div class="loading-files" id="loadingFiles"></div>
+        <div class="loading-hint">Loading 3D models from GitHub server (~150 MB total). This may take a few minutes on first load.<br>Please wait patiently — the simulation will be worth it!</div>
+    </div>
+
+    <!-- ═══════════════════ MAIN APPLICATION ═══════════════════ -->
+    <div class="app" id="app">
+        <header class="app-header">🔧 Simulation of Window Air Conditioner 🔧</header>
+        <div class="main">
+            <!-- ── Left Panel: Components ── -->
+            <aside class="left-panel">
+                <div class="panel-title">📋 List of Components</div>
+                <div class="comp-list" id="compList"></div>
+                <div class="progress-bar-wrap">
+                    <span id="progText">Progress: 0 / 12</span>
+                    <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+                </div>
+            </aside>
+
+            <!-- ── Center Panel: 3D Viewport ── -->
+            <section class="center-panel">
+                <canvas id="viewport"></canvas>
+                <div class="controls-bar">
+                    <button class="mode-btn active" id="btnAssembly">🔨 Assembly</button>
+                    <button class="mode-btn" id="btnWorking">⚙️ Working</button>
+                    <button class="mode-btn" id="btnDisassembly">🔓 Disassembly</button>
+                    <button class="mode-btn rst" id="btnReset">🔄 Reset</button>
+                </div>
+            </section>
+
+            <!-- ── Right Panel: Instructions ── -->
+            <aside class="right-panel">
+                <div class="panel-title">📖 Instructions</div>
+                <div class="instr-content" id="instrPanel"></div>
+                <div class="status-bar" id="statusBar">Status: Ready</div>
+            </aside>
+        </div>
+        <footer class="app-footer">🖱️ Left-drag: rotate &nbsp;|&nbsp; Right-drag: pan &nbsp;|&nbsp; Scroll: zoom &nbsp;|&nbsp; Click components from the list to assemble</footer>
+    </div>
+
+    <!-- ═══════════════════ THREE.JS IMPORTMAP ═══════════════════ -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- ═══════════════════ APPLICATION LOGIC ═══════════════════ -->
+    <script type="module">
+    import * as THREE from 'three';
+    import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    /* ════════════════════════════════════════════════════════════
+       BASE URL for STL files
+       ════════════════════════════════════════════════════════════ */
+    const BASE_URL = 'stl_web/';
+
+    /* ════════════════════════════════════════════════════════════
+       COMPONENT CONFIGURATION — 12 components in assembly order
+       ════════════════════════════════════════════════════════════ */
+    const COMPS = [
+        {
+            id:'base-pan', name:'BASE PAN', stl:null,
+            pos:[0,0,0], rot:[0,0,0], maxSz:null,
+            color:0x7a7a7a, metal:0.85, rough:0.3,
+            indSz:[10.5,0.4,8.5], hasBolts:false,
+            asmText:'Place the BASE PAN as the rigid metal foundation. This rectangular plate will support all components and has a divider separating indoor and outdoor compartments.',
+            disText:'Remove the BASE PAN — the foundation plate of the AC unit.'
+        },
+        {
+            id:'compressor', name:'COMPRESSOR', stl:'compressor.STL',
+            pos:[4.0,0.8,3.0], rot:[0,0,0], maxSz:1.6,
+            color:0xcc4444, metal:0.8, rough:0.3,
+            indSz:[1.8,1.8,1.8], hasBolts:true,
+            asmText:'Click COMPRESSOR and place it in the outdoor compartment. Bolts will secure it firmly to the base pan for vibration-free operation.',
+            disText:'Unbolt and remove the COMPRESSOR from the outdoor compartment.'
+        },
+        {
+            id:'condenser-coil', name:'CONDENSER COIL', stl:'Condenser_merged.STL',
+            pos:[0,1.2,4.0], rot:[0,0,0], maxSz:4.0,
+            color:0xe87d2f, metal:0.75, rough:0.35,
+            indSz:[5,3.2,0.8], hasBolts:true,
+            asmText:'Attach the CONDENSER COIL on the outdoor side. Copper tubing will automatically connect from the compressor upper knob to the condenser coil.',
+            disText:'Disconnect copper tubing and remove the CONDENSER COIL from outdoor section.'
+        },
+        {
+            id:'expansion-device', name:'EXPANSION DEVICE', stl:'expansionvalve.STL',
+            pos:[-4.0,1.2,0.5], rot:[0,0,0], maxSz:1.3,
+            color:0x4ecdc4, metal:0.6, rough:0.4,
+            indSz:[1.2,1,1], hasBolts:false,
+            asmText:'Mount the EXPANSION DEVICE on the indoor side. One end connects via copper tubing to the condenser coil lower knob. The other end will connect to the evaporator coil upper knob after its assembly.',
+            disText:'Disconnect tubing connections and remove the EXPANSION DEVICE.'
+        },
+        {
+            id:'evaporator-coil', name:'EVAPORATOR COIL', stl:'evaporatorcoil_merged.STL',
+            pos:[0,1.2,-3.2], rot:[0,Math.PI/2,0], maxSz:4.0,
+            color:0x4a90d9, metal:0.7, rough:0.35,
+            indSz:[5,3.2,0.8], hasBolts:true,
+            asmText:'Place the EVAPORATOR COIL on the indoor side. Copper tubing connects its upper knob to the expansion device and its lower knob to the compressor accumulator, completing the refrigerant loop.',
+            disText:'Disconnect all tubing and remove the EVAPORATOR COIL from indoor section.'
+        },
+        {
+            id:'fan-motor', name:'FAN MOTOR', stl:'motor_merged.STL',
+            pos:[0,1.2,0.5], rot:[0,Math.PI/2,0], maxSz:1.4,
+            color:0x606060, metal:0.85, rough:0.25,
+            indSz:[1.5,1.2,2], hasBolts:true,
+            asmText:'Position the FAN MOTOR at the center divider. This dual-shaft motor has one shaft connecting to the blower (indoor) and the other to the fan (outdoor).',
+            disText:'Unbolt and remove the FAN MOTOR from the divider mount.'
+        },
+        {
+            id:'blower', name:'BLOWER', stl:'turbine.STL',
+            pos:[0,1.2,-1.5], rot:[-Math.PI/2,0,0], maxSz:2,
+            color:0x66aa66, metal:0.5, rough:0.45,
+            indSz:[2.2,2.2,1.2], hasBolts:false,
+            asmText:'Attach the BLOWER on the evaporator side (indoor), facing the evaporator coil. The motor shaft extends and connects to the blower for circulating cool air.',
+            disText:'Disconnect from motor shaft and remove the BLOWER.'
+        },
+        {
+            id:'fan', name:'FAN', stl:['fanblade.STL','fanbody.STL'],
+            pos:[0,1.2,2.5], rot:[0,0,0], maxSz:2.5,
+            color:0xcccc44, metal:0.5, rough:0.4,
+            indSz:[2.8,2.8,0.6], hasBolts:false,
+            asmText:'Attach the FAN (blade + body combined) facing the condenser coil side to release heat. The motor shaft extends and connects to the fan for heat dissipation.',
+            disText:'Disconnect from motor shaft and remove the FAN assembly.'
+        },
+        {
+            id:'drain-system', name:'DRAIN SYSTEM', stl:null,
+            pos:[0,0.15,-3.2], rot:[0,0,0], maxSz:null,
+            color:0x5599aa, metal:0.6, rough:0.5,
+            indSz:[4.5,0.4,2.8], hasBolts:false,
+            asmText:'Install the DRAIN SYSTEM beneath the evaporator coil. The drain pan collects condensation and the routing pipe directs water to the outdoors.',
+            disText:'Remove the DRAIN SYSTEM from beneath the evaporator.'
+        },
+        {
+            id:'pcb', name:'PCB', stl:'pcb_merged.STL',
+            pos:[-4.0,1.5,-1.0], rot:[0,0,0], maxSz:2,
+            color:0x228b22, metal:0.3, rough:0.6,
+            indSz:[2.2,0.4,1.5], hasBolts:true,
+            asmText:'Place the PCB control board in its dedicated position. Power supply wires connect to the motor (red) and compressor (blue) for electrical control.',
+            disText:'Disconnect all wiring and remove the PCB control board.'
+        },
+        {
+            id:'filter', name:'FILTER', stl:'filter.STL',
+            pos:[0,1.2,-4.0], rot:[0,0,0], maxSz:3.5,
+            color:0x9977cc, metal:0.2, rough:0.7,
+            indSz:[4.5,2.8,0.4], hasBolts:false,
+            asmText:'Place the FILTER before the evaporator coil on the indoor side. It filters incoming air before cooling to ensure clean, fresh airflow.',
+            disText:'Slide out and remove the air FILTER.'
+        },
+        {
+            id:'outer-case', name:'OUTER CASE', stl:'metaloutercase.STL',
+            pos:[0,2.5,0], rot:[0,0,0], maxSz:10,
+            color:0x999999, metal:0.8, rough:0.3,
+            indSz:[11,4.8,6], hasBolts:true,
+            asmText:'Lower the OUTER CASE over all components to enclose the entire unit. Bolts secure it firmly — assembly is now COMPLETE!',
+            disText:'Unbolt and lift off the OUTER CASE to expose all internal components.'
+        }
+    ];
+
+    /* ════════════════════════════════════════════════════════════
+       CONNECTION DEFINITIONS
+       ════════════════════════════════════════════════════════════ */
+    // Copper Tubing
+    const TUBE_DEFS = [
+        { id:'comp-cond', trigger:'condenser-coil', requires:'compressor',
+          pts:[[4.0,1.6,3.0],[4.0,3.0,3.5],[2.0,3.2,4.0],[0,2.5,4.0]],
+          label:'Compressor → Condenser (high-pressure hot gas)' },
+        { id:'cond-exp', trigger:'expansion-device', requires:'condenser-coil',
+          pts:[[-2.0,1.2,4.0],[-3.0,1.0,2.5],[-3.5,1.0,1.5],[-4.0,1.2,0.5]],
+          label:'Condenser → Expansion Device (high-pressure liquid)' },
+        { id:'exp-evap', trigger:'evaporator-coil', requires:'expansion-device',
+          pts:[[-4.0,1.2,0.0],[-3.0,1.0,-1.5],[-2.0,1.0,-2.5],[0,1.2,-3.2]],
+          label:'Expansion Device → Evaporator (low-pressure cold)' },
+        { id:'evap-comp', trigger:'evaporator-coil', requires:'compressor',
+          pts:[[2.0,1.2,-3.2],[3.5,0.8,-1.5],[4.5,0.5,1.0],[4.0,0.5,3.0]],
+          label:'Evaporator → Compressor (return line to accumulator)' },
+    ];
+    // Motor Shafts
+    const SHAFT_DEFS = [
+        { id:'motor-blower', trigger:'blower', requires:'fan-motor',
+          from:[0,1.2,-0.2], to:[0,1.2,-1.5] },
+        { id:'motor-fan', trigger:'fan', requires:'fan-motor',
+          from:[0,1.2,1.2], to:[0,1.2,2.5] },
+    ];
+    // Power Wires
+    const WIRE_DEFS = [
+        { id:'pcb-motor', trigger:'pcb', requires:'fan-motor',
+          from:[-4.0,1.5,-1.0], to:[0,1.2,0.5], color:0xff2222, label:'Power → Motor (red)' },
+        { id:'pcb-comp', trigger:'pcb', requires:'compressor',
+          from:[-4.0,1.5,-0.5], to:[4.0,0.8,3.0], color:0x2222ff, label:'Power → Compressor (blue)' },
+    ];
+
+    /* ════════════════════════════════════════════════════════════
+       STATE
+       ════════════════════════════════════════════════════════════ */
+    let scene, camera, renderer, controls, clock;
+    let currentMode = 'assembly';
+    let assembledSet = new Set();
+    let nextAsmIdx = 0;
+    let loadedGeos = {};
+    let meshes = {};
+    let indicators = {};
+    let boltGroups = {};
+    let tubes = {};
+    let shafts = {};
+    let wires = {};
+    let particles = {};
+    let arrows = [];
+    let tweens = [];
+    let isAnimating = false;
+    let failedLoads = [];
+
+    /* ════════════════════════════════════════════════════════════
+       INIT — show app FIRST so canvas has real dimensions
+       ════════════════════════════════════════════════════════════ */
+    async function init() {
+        clock = new THREE.Clock();
+        buildUI();
+        await loadSTLs();
+
+        // Show app so canvas gets layout dimensions
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+
+        // Wait for browser layout
+        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+        // Build 3D scene
+        buildScene();
+        buildCamera();
+        buildLights();
+        buildRenderer();
+        buildControls();
+        onResize();
+
+        setMode('assembly');
+
+        if (failedLoads.length > 0) {
+            console.warn('Failed STL loads (using fallback shapes):', failedLoads);
+            toast('⚠️ Some models used fallback shapes', 'wrn');
+        }
+
+        animate();
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       SCENE
+       ════════════════════════════════════════════════════════════ */
+    function buildScene() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x101028);
+        scene.fog = new THREE.FogExp2(0x101028, 0.008);
+
+        // Ground
+        const gnd = new THREE.Mesh(
+            new THREE.PlaneGeometry(40, 40),
+            new THREE.MeshStandardMaterial({ color:0x12122a, roughness:0.95, metalness:0.05 })
+        );
+        gnd.rotation.x = -Math.PI / 2;
+        gnd.position.y = -0.08;
+        gnd.receiveShadow = true;
+        scene.add(gnd);
+
+        // Grid
+        const grid = new THREE.GridHelper(30, 30, 0x2a2a55, 0x1a1a33);
+        grid.position.y = -0.07;
+        scene.add(grid);
+    }
+
+    function buildCamera() {
+        const c = document.getElementById('viewport');
+        const w = Math.max(c.clientWidth, 100);
+        const h = Math.max(c.clientHeight, 100);
+        camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 200);
+        camera.position.set(12, 9, 12);
+    }
+
+    function buildLights() {
+        scene.add(new THREE.AmbientLight(0x8888aa, 1.0));
+
+        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        sun.position.set(12, 18, 10);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+        sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -12;
+        scene.add(sun);
+
+        const fill = new THREE.DirectionalLight(0x6688cc, 0.5);
+        fill.position.set(-10, 6, -8);
+        scene.add(fill);
+
+        const back = new THREE.DirectionalLight(0x9966ff, 0.3);
+        back.position.set(-5, 10, 12);
+        scene.add(back);
+
+        const rim = new THREE.PointLight(0xa855f7, 0.5, 30);
+        rim.position.set(0, 8, -5);
+        scene.add(rim);
+    }
+
+    function buildRenderer() {
+        const c = document.getElementById('viewport');
+        renderer = new THREE.WebGLRenderer({ canvas:c, antialias:true });
+        const w = Math.max(c.clientWidth, 100);
+        const h = Math.max(c.clientHeight, 100);
+        renderer.setSize(w, h);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.3;
+    }
+
+    function buildControls() {
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.target.set(0, 1.8, 0.5);
+        controls.minDistance = 4;
+        controls.maxDistance = 30;
+        controls.maxPolarAngle = Math.PI * 0.88;
+        controls.update();
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       STL LOADING — fetch with progress, timeout, and decimation
+       ════════════════════════════════════════════════════════════ */
+    const MAX_TRIANGLES = 200000; // Decimate if geometry exceeds this
+
+    function decimateGeometry(geo, maxTris) {
+        const posAttr = geo.getAttribute('position');
+        if (!posAttr) return geo;
+        const totalTris = posAttr.count / 3;
+        if (totalTris <= maxTris) return geo;
+
+        const step = Math.ceil(totalTris / maxTris);
+        const keptTris = Math.ceil(totalTris / step);
+        const newPos = new Float32Array(keptTris * 9);
+        const oldPos = posAttr.array;
+
+        let outIdx = 0;
+        for (let i = 0; i < totalTris; i += step) {
+            const base = i * 9;
+            for (let j = 0; j < 9 && base + j < oldPos.length; j++) {
+                newPos[outIdx++] = oldPos[base + j];
+            }
+        }
+
+        const newGeo = new THREE.BufferGeometry();
+        newGeo.setAttribute('position', new THREE.BufferAttribute(newPos.slice(0, outIdx), 3));
+        newGeo.computeVertexNormals();
+        newGeo.computeBoundingBox();
+        console.log(`Decimated: ${totalTris} → ${keptTris} triangles (step ${step})`);
+        return newGeo;
+    }
+
+    async function loadSTLs() {
+        const loader = new STLLoader();
+        const toLoad = COMPS.filter(c => c.stl !== null);
+        let done = 0;
+        const total = toLoad.reduce((s, c) => s + (Array.isArray(c.stl) ? c.stl.length : 1), 0);
+        const bar = document.getElementById('loadingBar');
+        const pct = document.getElementById('loadingPct');
+        const txt = document.getElementById('loadingText');
+        const filesEl = document.getElementById('loadingFiles');
+
+        // Build file chips
+        const chipMap = {};
+        toLoad.forEach(comp => {
+            const files = Array.isArray(comp.stl) ? comp.stl : [comp.stl];
+            files.forEach(f => {
+                const chip = document.createElement('span');
+                chip.className = 'loading-file-chip';
+                chip.textContent = f;
+                filesEl.appendChild(chip);
+                chipMap[f] = chip;
+            });
+        });
+
+        for (const comp of toLoad) {
+            txt.textContent = `Loading ${comp.name}...`;
+            try {
+                if (Array.isArray(comp.stl)) {
+                    const geos = [];
+                    for (const f of comp.stl) {
+                        if (chipMap[f]) chipMap[f].className = 'loading-file-chip loading';
+                        const g = await loadOneFile(loader, f, txt, comp.name);
+                        geos.push(g);
+                        if (chipMap[f]) chipMap[f].className = 'loading-file-chip done';
+                        done++;
+                        bar.style.width = `${(done / total) * 100}%`;
+                        pct.textContent = `${Math.round(done / total * 100)}%`;
+                    }
+                    loadedGeos[comp.id] = geos;
+                } else {
+                    if (chipMap[comp.stl]) chipMap[comp.stl].className = 'loading-file-chip loading';
+                    loadedGeos[comp.id] = await loadOneFile(loader, comp.stl, txt, comp.name);
+                    if (chipMap[comp.stl]) chipMap[comp.stl].className = 'loading-file-chip done';
+                    done++;
+                    bar.style.width = `${(done / total) * 100}%`;
+                    pct.textContent = `${Math.round(done / total * 100)}%`;
+                }
+            } catch (e) {
+                console.error(`FAILED to load ${comp.name}:`, e);
+                failedLoads.push(comp.name);
+                const files = Array.isArray(comp.stl) ? comp.stl : [comp.stl];
+                files.forEach(f => { if (chipMap[f]) chipMap[f].className = 'loading-file-chip fail'; });
+                loadedGeos[comp.id] = null;
+                done += (Array.isArray(comp.stl) ? comp.stl.length : 1);
+                bar.style.width = `${(done / total) * 100}%`;
+                pct.textContent = `${Math.round(done / total * 100)}%`;
+            }
+            // Let the browser breathe between files
+            await sleep(50);
+        }
+        txt.textContent = 'All models processed! Launching simulation...';
+        await sleep(400);
+    }
+
+    async function loadOneFile(loader, filename, txtEl, compName) {
+        const url = BASE_URL + filename;
+        if (txtEl) txtEl.textContent = `Downloading ${compName}...`;
+
+        // Use fetch with streaming progress
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status} for ${filename}`);
+
+        const contentLength = +response.headers.get('Content-Length') || 0;
+        const reader = response.body.getReader();
+        const chunks = [];
+        let received = 0;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            received += value.length;
+            if (txtEl) {
+                const mb = (received / (1024 * 1024)).toFixed(1);
+                if (contentLength > 0) {
+                    const totalMb = (contentLength / (1024 * 1024)).toFixed(1);
+                    const p = Math.round((received / contentLength) * 100);
+                    txtEl.textContent = `Downloading ${compName}... ${mb}/${totalMb} MB (${p}%)`;
+                } else {
+                    txtEl.textContent = `Downloading ${compName}... ${mb} MB`;
+                }
+            }
+        }
+
+        // Combine chunks into ArrayBuffer
+        const combined = new Uint8Array(received);
+        let offset = 0;
+        for (const chunk of chunks) {
+            combined.set(chunk, offset);
+            offset += chunk.length;
+        }
+
+        if (txtEl) txtEl.textContent = `Parsing ${compName} geometry...`;
+        // Let browser render the status text
+        await sleep(30);
+
+        // Parse STL from ArrayBuffer
+        let geo = loader.parse(combined.buffer);
+        geo.computeVertexNormals();
+
+        // Decimate if too many triangles (prevents browser crash)
+        geo = decimateGeometry(geo, MAX_TRIANGLES);
+
+        return geo;
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    /* ════════════════════════════════════════════════════════════
+       GEOMETRY HELPERS
+       ════════════════════════════════════════════════════════════ */
+    function normGeo(geo, maxSz) {
+        geo.computeBoundingBox();
+        const sz = new THREE.Vector3(), ctr = new THREE.Vector3();
+        geo.boundingBox.getSize(sz);
+        geo.boundingBox.getCenter(ctr);
+        geo.translate(-ctr.x, -ctr.y, -ctr.z);
+        if (maxSz && Math.max(sz.x, sz.y, sz.z) > 0) {
+            const s = maxSz / Math.max(sz.x, sz.y, sz.z);
+            geo.scale(s, s, s);
+        }
+        geo.computeBoundingBox();
+        geo.computeVertexNormals();
+        return geo;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       CREATE COMPONENT MESHES
+       ════════════════════════════════════════════════════════════ */
+    function makeMesh(comp) {
+        if (comp.id === 'base-pan') return makeBasePan(comp);
+        if (comp.id === 'drain-system') return makeDrain(comp);
+        if (comp.id === 'fan') return makeFan(comp);
+
+        const g = loadedGeos[comp.id];
+        if (!g) return makeFallback(comp);
+
+        const geo = g.clone();
+        normGeo(geo, comp.maxSz);
+
+        const mat = new THREE.MeshStandardMaterial({
+            color:comp.color, metalness:comp.metal, roughness:comp.rough
+        });
+
+        if (comp.id === 'outer-case') {
+            mat.transparent = true;
+            mat.opacity = 0.15;
+            mat.side = THREE.DoubleSide;
+        }
+
+        const m = new THREE.Mesh(geo, mat);
+        m.castShadow = true;
+        m.receiveShadow = true;
+        m.userData.compId = comp.id;
+        return m;
+    }
+
+    function makeBasePan(comp) {
+        const g = new THREE.Group();
+
+        // Main plate
+        const plate = new THREE.Mesh(
+            new THREE.BoxGeometry(10, 0.15, 8),
+            new THREE.MeshStandardMaterial({ color:0x7a7a7a, metalness:0.85, roughness:0.25 })
+        );
+        plate.castShadow = true; plate.receiveShadow = true;
+        g.add(plate);
+
+        // Edges wireframe
+        g.add(new THREE.LineSegments(
+            new THREE.EdgesGeometry(plate.geometry),
+            new THREE.LineBasicMaterial({ color:0xaaaaaa })
+        ));
+
+        // Rim walls
+        const rimMat = new THREE.MeshStandardMaterial({ color:0x6a6a6a, metalness:0.8, roughness:0.3 });
+        const mkR = (w,h,d,x,y,z) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), rimMat);
+            m.position.set(x,y,z); m.castShadow = true; return m;
+        };
+        g.add(mkR(10, 0.25, 0.08, 0, 0.12, -4));
+        g.add(mkR(10, 0.25, 0.08, 0, 0.12, 4));
+        g.add(mkR(0.08, 0.25, 8, -5, 0.12, 0));
+        g.add(mkR(0.08, 0.25, 8, 5, 0.12, 0));
+
+        // Mounting holes (decorative)
+        const holeMat = new THREE.MeshStandardMaterial({ color:0x333333, metalness:0.9, roughness:0.2 });
+        const corners = [[-4.5,0.08,-3.5],[4.5,0.08,-3.5],[-4.5,0.08,3.5],[4.5,0.08,3.5]];
+        corners.forEach(([x,y,z]) => {
+            const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.05,12), holeMat);
+            hole.position.set(x,y,z); g.add(hole);
+        });
+
+        g.userData.compId = comp.id;
+        return g;
+    }
+
+    function makeDrain(comp) {
+        const g = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color:0x5599aa, metalness:0.6, roughness:0.5 });
+
+        // Drain pan
+        const pan = new THREE.Mesh(new THREE.BoxGeometry(4, 0.08, 2.5), mat);
+        pan.castShadow = true;
+        g.add(pan);
+
+        // Pan walls
+        const wm = mat.clone();
+        const w = (w1,h,d,x,y,z) => {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w1,h,d), wm);
+            m.position.set(x,y,z); return m;
+        };
+        g.add(w(4, 0.2, 0.06, 0, 0.1, -1.25));
+        g.add(w(4, 0.2, 0.06, 0, 0.1, 1.25));
+        g.add(w(0.06, 0.2, 2.5, -2, 0.1, 0));
+        g.add(w(0.06, 0.2, 2.5, 2, 0.1, 0));
+
+        // Drain pipe
+        const pipeMat = new THREE.MeshStandardMaterial({ color:0x555555, metalness:0.7, roughness:0.3 });
+        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3, 8), pipeMat);
+        pipe.rotation.z = Math.PI / 2;
+        pipe.position.set(3.5, -0.3, 0);
+        g.add(pipe);
+
+        // Elbow joint
+        const elbow = new THREE.Mesh(
+            new THREE.TorusGeometry(0.15, 0.08, 8, 12, Math.PI / 2), pipeMat
+        );
+        elbow.position.set(5, -0.3, 0);
+        elbow.rotation.y = Math.PI / 2;
+        g.add(elbow);
+
+        // Drip exit pipe (vertical)
+        const exitPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.5, 8), pipeMat);
+        exitPipe.position.set(5, -1.0, 0);
+        g.add(exitPipe);
+
+        g.userData.compId = comp.id;
+        return g;
+    }
+
+    function makeFan(comp) {
+        const g = new THREE.Group();
+        const geos = loadedGeos['fan'];
+        if (!geos) return makeFallback(comp);
+
+        // Fan body
+        if (geos[1]) {
+            const bg = geos[1].clone();
+            normGeo(bg, 1);
+            const bm = new THREE.Mesh(bg, new THREE.MeshStandardMaterial({ color:0x555555, metalness:0.8, roughness:0.3 }));
+            bm.castShadow = true;
+            g.add(bm);
+        }
+        // Fan blade
+        if (geos[0]) {
+            const fg = geos[0].clone();
+            normGeo(fg, comp.maxSz);
+            const fm = new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ color:comp.color, metalness:0.5, roughness:0.4 }));
+            fm.castShadow = true;
+            fm.name = 'blade';
+            g.add(fm);
+        }
+
+        g.userData.compId = comp.id;
+        return g;
+    }
+
+    function makeFallback(comp) {
+        const sz = comp.indSz || [1,1,1];
+        const g = new THREE.Mesh(
+            new THREE.BoxGeometry(sz[0]*0.6, sz[1]*0.6, sz[2]*0.6),
+            new THREE.MeshStandardMaterial({ color:comp.color, metalness:comp.metal, roughness:comp.rough })
+        );
+        g.castShadow = true; g.receiveShadow = true;
+        g.userData.compId = comp.id;
+        return g;
+    }
+
+    function makeIndicator(comp) { return new THREE.Group(); }
+    function showIndicator(idx) { /* removed */ }
+    function hideAllIndicators() { indicators = {}; }
+
+    /* ════════════════════════════════════════════════════════════
+       ASSEMBLY — Drop + Bounce + Flash
+       ════════════════════════════════════════════════════════════ */
+    function assembleComp(idx) {
+        if (isAnimating) return;
+        const comp = COMPS[idx];
+        if (assembledSet.has(comp.id)) return;
+
+        if (currentMode === 'assembly' && idx !== nextAsmIdx) {
+            toast(`Please assemble "${COMPS[nextAsmIdx].name}" first!`, 'wrn');
+            return;
+        }
+
+        isAnimating = true;
+        if (indicators[comp.id]) { scene.remove(indicators[comp.id]); delete indicators[comp.id]; }
+
+        const mesh = makeMesh(comp);
+        mesh.position.set(comp.pos[0], comp.pos[1] + 6, comp.pos[2]);
+        if (comp.rot) mesh.rotation.set(comp.rot[0], comp.rot[1], comp.rot[2]);
+        scene.add(mesh);
+        meshes[comp.id] = mesh;
+
+        const startY = comp.pos[1] + 6, endY = comp.pos[1];
+        addTween(1.2, t => {
+            mesh.position.y = startY + (endY - startY) * easeOutBounce(t);
+        }, () => {
+            mesh.position.y = endY;
+            assembledSet.add(comp.id);
+            nextAsmIdx = idx + 1;
+
+            if (comp.hasBolts) doBolts(comp);
+            doConnections(comp.id);
+            doPlacementFlash(comp);
+            updateUI();
+
+            setStatus(`✅ ${comp.name} assembled (${assembledSet.size}/${COMPS.length})`, 'ok');
+            if (currentMode === 'assembly') showIndicator(nextAsmIdx);
+
+            addInstr(`✅ <strong>${comp.name}</strong> placed and secured successfully.`, 'done');
+
+            // Show connection info
+            TUBE_DEFS.forEach(td => {
+                if ((td.trigger === comp.id && assembledSet.has(td.requires)) ||
+                    (td.requires === comp.id && assembledSet.has(td.trigger))) {
+                    addInstr(`🔗 <strong>Copper Tubing:</strong> ${td.label}`, 'done');
+                }
+            });
+            WIRE_DEFS.forEach(wd => {
+                if ((wd.trigger === comp.id && assembledSet.has(wd.requires)) ||
+                    (wd.requires === comp.id && assembledSet.has(wd.trigger))) {
+                    addInstr(`⚡ <strong>Wire Connected:</strong> ${wd.label}`, 'done');
+                }
+            });
+            SHAFT_DEFS.forEach(sd => {
+                if ((sd.trigger === comp.id && assembledSet.has(sd.requires)) ||
+                    (sd.requires === comp.id && assembledSet.has(sd.trigger))) {
+                    addInstr(`🔧 <strong>Motor Shaft</strong> extended and connected.`, 'done');
+                }
+            });
+
+            if (nextAsmIdx < COMPS.length && currentMode === 'assembly') {
+                addInstr(`▶ <strong>Step ${nextAsmIdx + 1}:</strong> ${COMPS[nextAsmIdx].asmText}`, 'next');
+            }
+
+            if (assembledSet.size === COMPS.length) {
+                addInstr('🎉 <strong>ASSEMBLY COMPLETE!</strong> All 12 components assembled successfully. Switch to WORKING mode to see the AC in action!', 'info');
+                toast('🎉 Assembly Complete!', 'ok');
+            }
+
+            isAnimating = false;
+        });
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       BOLTING EFFECT — Realistic bolt-down animation
+       ════════════════════════════════════════════════════════════ */
+    function doBolts(comp) {
+        return; // Bolts/screws completely removed
+        const bolts = [];
+        offsets.forEach((off, i) => {
+            setTimeout(() => {
+                const bg = new THREE.Group();
+
+                // Bolt shaft
+                const shaft = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.04, 0.04, 0.18, 6),
+                    new THREE.MeshStandardMaterial({ color:0xcccccc, metalness:0.95, roughness:0.15 })
+                );
+                shaft.position.y = 0.09;
+                bg.add(shaft);
+
+                // Bolt head
+                const head = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.08, 0.08, 0.04, 6),
+                    new THREE.MeshStandardMaterial({ color:0xdddddd, metalness:0.95, roughness:0.1 })
+                );
+                head.position.y = 0.2;
+                bg.add(head);
+
+                // Cross slot
+                const slot = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.12, 0.01, 0.02),
+                    new THREE.MeshStandardMaterial({ color:0x333333 })
+                );
+                slot.position.y = 0.22;
+                bg.add(slot);
+                const slot2 = slot.clone();
+                slot2.rotation.y = Math.PI / 2;
+                bg.add(slot2);
+
+                const worldPos = new THREE.Vector3(
+                    comp.pos[0] + off[0],
+                    comp.pos[1] + off[1] + 1,
+                    comp.pos[2] + off[2]
+                );
+                const targetY = comp.pos[1] + off[1];
+                bg.position.copy(worldPos);
+                scene.add(bg);
+                bolts.push(bg);
+
+                // Bolt spinning down animation
+                addTween(0.5, t => {
+                    bg.position.y = worldPos.y + (targetY - worldPos.y) * easeOutCubic(t);
+                    bg.rotation.y = t * Math.PI * 6; // Spin effect
+                }, () => {
+                    bg.position.y = targetY;
+                    // Spark flash on bolt landing
+                    const flash = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.12, 8, 8),
+                        new THREE.MeshBasicMaterial({ color:0xffdd44, transparent:true, opacity:0.8 })
+                    );
+                    flash.position.copy(bg.position);
+                    scene.add(flash);
+                    addTween(0.4, t => {
+                        flash.material.opacity = 0.8 * (1 - t);
+                        flash.scale.setScalar(1 + t * 2);
+                    }, () => scene.remove(flash));
+                });
+            }, i * 200);
+        });
+        boltGroups[comp.id] = bolts;
+    }
+
+    function doPlacementFlash(comp) {
+        return; // Glow flash completely removed
+            new THREE.SphereGeometry(0.6, 16, 16),
+            new THREE.MeshBasicMaterial({ color:0xffaa00, transparent:true, opacity:0.5 })
+        );
+        flash.position.set(comp.pos[0], comp.pos[1], comp.pos[2]);
+        scene.add(flash);
+        addTween(0.6, t => {
+            flash.material.opacity = 0.5 * (1 - t);
+            flash.scale.setScalar(1 + t * 3);
+        }, () => scene.remove(flash));
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       CONNECTIONS — Tubes, Shafts, Wires
+       ════════════════════════════════════════════════════════════ */
+    function doConnections(triggerId) {
+        TUBE_DEFS.forEach(td => {
+            if (td.trigger === triggerId && assembledSet.has(td.requires)) makeTube(td);
+            if (td.requires === triggerId && assembledSet.has(td.trigger) && !tubes[td.id]) makeTube(td);
+        });
+        SHAFT_DEFS.forEach(sd => {
+            if (sd.trigger === triggerId && assembledSet.has(sd.requires)) makeShaft(sd);
+            if (sd.requires === triggerId && assembledSet.has(sd.trigger) && !shafts[sd.id]) makeShaft(sd);
+        });
+        WIRE_DEFS.forEach(wd => {
+            if (wd.trigger === triggerId && assembledSet.has(wd.requires)) makeWire(wd);
+            if (wd.requires === triggerId && assembledSet.has(wd.trigger) && !wires[wd.id]) makeWire(wd);
+        });
+    }
+
+    function makeTube(td) {
+        if (tubes[td.id]) return;
+        const pts = td.pts.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.3);
+        const geo = new THREE.TubeGeometry(curve, 28, 0.055, 8, false);
+        const mat = new THREE.MeshStandardMaterial({ color:0xb87333, metalness:0.92, roughness:0.15 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.castShadow = true;
+        scene.add(mesh);
+        tubes[td.id] = { mesh, curve };
+
+        // Fade-in animation
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0;
+        addTween(0.6, t => { mesh.material.opacity = t; }, () => {
+            mesh.material.transparent = false;
+            mesh.material.opacity = 1;
+        });
+    }
+
+    function makeShaft(sd) {
+        if (shafts[sd.id]) return;
+        const s = new THREE.Vector3(sd.from[0], sd.from[1], sd.from[2]);
+        const e = new THREE.Vector3(sd.to[0], sd.to[1], sd.to[2]);
+        const dir = e.clone().sub(s);
+        const len = dir.length();
+        const mid = s.clone().add(dir.clone().multiplyScalar(0.5));
+        const mesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.04, 0.04, len, 8),
+            new THREE.MeshStandardMaterial({ color:0x888888, metalness:0.9, roughness:0.2 })
+        );
+        mesh.position.copy(mid);
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+        mesh.castShadow = true;
+        scene.add(mesh);
+        shafts[sd.id] = mesh;
+    }
+
+    function makeWire(wd) {
+        if (wires[wd.id]) return;
+        const s = new THREE.Vector3(wd.from[0], wd.from[1], wd.from[2]);
+        const e = new THREE.Vector3(wd.to[0], wd.to[1], wd.to[2]);
+        const mid = new THREE.Vector3((s.x+e.x)/2, Math.max(s.y,e.y)+0.8, (s.z+e.z)/2);
+        const curve = new THREE.CatmullRomCurve3([s, mid, e]);
+        const mesh = new THREE.Mesh(
+            new THREE.TubeGeometry(curve, 16, 0.025, 6, false),
+            new THREE.MeshStandardMaterial({ color:wd.color || 0xff0000, metalness:0.3, roughness:0.6 })
+        );
+        scene.add(mesh);
+        wires[wd.id] = mesh;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       DISASSEMBLY — Reverse order, fade-up
+       ════════════════════════════════════════════════════════════ */
+    function disassembleComp(idx) {
+        if (isAnimating) return;
+        const comp = COMPS[idx];
+        if (!assembledSet.has(comp.id)) return;
+        const lastIdx = getLastAssembled();
+        if (idx !== lastIdx) {
+            toast(`Please remove "${COMPS[lastIdx].name}" first (reverse order)!`, 'wrn');
+            return;
+        }
+
+        isAnimating = true;
+        const mesh = meshes[comp.id];
+        if (!mesh) { isAnimating = false; return; }
+
+        // Remove bolts
+        if (boltGroups[comp.id]) {
+            boltGroups[comp.id].forEach(b => scene.remove(b));
+            delete boltGroups[comp.id];
+        }
+        removeConnsFor(comp.id);
+
+        const startY = mesh.position.y, endY = startY + 6;
+        const mats = [];
+        mesh.traverse(c => { if (c.material) { c.material.transparent = true; mats.push(c.material); } });
+
+        addTween(1.0, t => {
+            mesh.position.y = startY + (endY - startY) * easeInCubic(t);
+            mats.forEach(m => m.opacity = 1 - t);
+        }, () => {
+            scene.remove(mesh);
+            delete meshes[comp.id];
+            assembledSet.delete(comp.id);
+            nextAsmIdx = Math.min(nextAsmIdx, idx);
+            updateUI();
+
+            setStatus(`❌ ${comp.name} removed (${assembledSet.size}/${COMPS.length})`, 'wrn');
+            addInstr(`❌ <strong>${comp.name}</strong> disassembled and removed.`, 'warn');
+
+            if (assembledSet.size > 0 && currentMode === 'disassembly') {
+                const nxt = getLastAssembled();
+                addInstr(`▶ <strong>Next:</strong> Remove ${COMPS[nxt].name}. ${COMPS[nxt].disText}`, 'next');
+            }
+            if (assembledSet.size === 0) {
+                addInstr('🔓 <strong>DISASSEMBLY COMPLETE!</strong> All components removed successfully.', 'info');
+                toast('🔓 Disassembly Complete!', 'ok');
+            }
+            isAnimating = false;
+        });
+    }
+
+    function removeConnsFor(compId) {
+        TUBE_DEFS.forEach(td => {
+            if ((td.trigger === compId || td.requires === compId) && tubes[td.id]) {
+                scene.remove(tubes[td.id].mesh); delete tubes[td.id];
+            }
+        });
+        SHAFT_DEFS.forEach(sd => {
+            if ((sd.trigger === compId || sd.requires === compId) && shafts[sd.id]) {
+                scene.remove(shafts[sd.id]); delete shafts[sd.id];
+            }
+        });
+        WIRE_DEFS.forEach(wd => {
+            if ((wd.trigger === compId || wd.requires === compId) && wires[wd.id]) {
+                scene.remove(wires[wd.id]); delete wires[wd.id];
+            }
+        });
+    }
+
+    function getLastAssembled() {
+        for (let i = COMPS.length - 1; i >= 0; i--) {
+            if (assembledSet.has(COMPS[i].id)) return i;
+        }
+        return -1;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       WORKING MODE — Refrigerant flow, fan spin, vibration
+       ════════════════════════════════════════════════════════════ */
+    function startWorking() {
+        if (assembledSet.size < COMPS.length) {
+            toast('⚠️ Complete the full assembly first!', 'wrn');
+            return false;
+        }
+
+        // Make outer case nearly transparent
+        if (meshes['outer-case']) {
+            meshes['outer-case'].traverse(c => {
+                if (c.material) { c.material.transparent = true; c.material.opacity = 0.08; }
+            });
+        }
+
+        // Create refrigerant particles for each tube
+        for (const id in tubes) {
+            const { curve } = tubes[id];
+            const pg = new THREE.Group();
+            for (let i = 0; i < 12; i++) {
+                let color = 0x88ccff;
+                if (id.includes('comp-cond')) color = 0xff4444;     // Hot gas (red)
+                else if (id.includes('cond-exp')) color = 0xffaa33; // Warm liquid (orange)
+                else if (id.includes('exp-evap')) color = 0x44aaff; // Cold refrigerant (blue)
+                else color = 0x77bbee;                              // Return (light blue)
+
+                const sphere = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.045, 6, 6),
+                    new THREE.MeshBasicMaterial({ color })
+                );
+                const glow = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.09, 6, 6),
+                    new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.3 })
+                );
+                sphere.add(glow);
+                sphere.userData.off = i / 12;
+                sphere.userData.curve = curve;
+                pg.add(sphere);
+            }
+            scene.add(pg);
+            particles[id] = pg;
+        }
+
+        makeAirflowArrows();
+        return true;
+    }
+
+    function stopWorking() {
+        for (const id in particles) scene.remove(particles[id]);
+        particles = {};
+        arrows.forEach(a => scene.remove(a));
+        arrows = [];
+        if (meshes['outer-case']) {
+            meshes['outer-case'].traverse(c => {
+                if (c.material) { c.material.opacity = 0.15; }
+            });
+        }
+    }
+
+    function makeAirflowArrows() {
+        // Cool air arrows (indoor, blue)
+        for (let i = -1.5; i <= 1.5; i += 1) {
+            const ag = makeArrow(new THREE.Vector3(i, 2, -2.8), new THREE.Vector3(0,0,-1), 1.2, 0x44aaff);
+            arrows.push(ag); scene.add(ag);
+        }
+        // Hot air arrows (outdoor, red)
+        for (let i = -1.5; i <= 1.5; i += 1) {
+            const ag = makeArrow(new THREE.Vector3(i, 2, 3), new THREE.Vector3(0,0,1), 1.2, 0xff5544);
+            arrows.push(ag); scene.add(ag);
+        }
+    }
+
+    function makeArrow(pos, dir, len, color) {
+        const g = new THREE.Group();
+        const shaft = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, len, 6),
+            new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.6 })
+        );
+        shaft.position.y = len / 2;
+        g.add(shaft);
+        const head = new THREE.Mesh(
+            new THREE.ConeGeometry(0.1, 0.3, 6),
+            new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.7 })
+        );
+        head.position.y = len + 0.15;
+        g.add(head);
+        g.position.copy(pos);
+        g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+        return g;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       TWEEN SYSTEM
+       ════════════════════════════════════════════════════════════ */
+    function addTween(dur, onUpdate, onComplete) {
+        tweens.push({ start:clock.getElapsedTime(), dur, onUpdate, onComplete, done:false });
+    }
+
+    function updateTweens() {
+        const now = clock.getElapsedTime();
+        tweens = tweens.filter(tw => {
+            if (tw.done) return false;
+            const t = Math.min((now - tw.start) / tw.dur, 1);
+            tw.onUpdate(t);
+            if (t >= 1) {
+                tw.done = true;
+                if (tw.onComplete) tw.onComplete();
+                return false;
+            }
+            return true;
+        });
+    }
+
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+    function easeInCubic(t) { return t * t * t; }
+    function easeOutBounce(t) {
+        const n = 7.5625, d = 2.75;
+        if (t < 1/d) return n*t*t;
+        if (t < 2/d) return n*(t -= 1.5/d)*t + 0.75;
+        if (t < 2.5/d) return n*(t -= 2.25/d)*t + 0.9375;
+        return n*(t -= 2.625/d)*t + 0.984375;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       UI — Build & Update
+       ════════════════════════════════════════════════════════════ */
+    function buildUI() {
+        const list = document.getElementById('compList');
+        COMPS.forEach((c, i) => {
+            const el = document.createElement('div');
+            el.className = 'comp-item';
+            el.dataset.idx = i;
+            el.innerHTML = `<span class="comp-num">${i+1}</span><span class="comp-name">${c.name}</span><span class="comp-status">⬜</span>`;
+            el.addEventListener('click', () => handleClick(i));
+            list.appendChild(el);
+        });
+        document.getElementById('btnAssembly').addEventListener('click', () => setMode('assembly'));
+        document.getElementById('btnWorking').addEventListener('click', () => setMode('working'));
+        document.getElementById('btnDisassembly').addEventListener('click', () => setMode('disassembly'));
+        document.getElementById('btnReset').addEventListener('click', doReset);
+        window.addEventListener('resize', onResize);
+    }
+
+    function handleClick(idx) {
+        if (currentMode === 'assembly') assembleComp(idx);
+        else if (currentMode === 'disassembly') disassembleComp(idx);
+    }
+
+    function updateUI() {
+        const items = document.querySelectorAll('.comp-item');
+        items.forEach((el, i) => {
+            el.classList.remove('assembled', 'current', 'locked');
+            const st = el.querySelector('.comp-status');
+            const comp = COMPS[i];
+            if (assembledSet.has(comp.id)) {
+                el.classList.add('assembled');
+                st.textContent = '✅';
+            } else if (currentMode === 'assembly') {
+                if (i === nextAsmIdx) { el.classList.add('current'); st.textContent = '▶'; }
+                else if (i > nextAsmIdx) { el.classList.add('locked'); st.textContent = '🔒'; }
+                else st.textContent = '⬜';
+            } else if (currentMode === 'disassembly') {
+                const last = getLastAssembled();
+                if (i === last) { el.classList.add('current'); st.textContent = '▶'; }
+                else st.textContent = '⬜';
+            } else {
+                st.textContent = '⬜';
+            }
+        });
+        document.getElementById('progText').textContent = `Progress: ${assembledSet.size} / ${COMPS.length}`;
+        document.getElementById('progFill').style.width = `${(assembledSet.size / COMPS.length) * 100}%`;
+    }
+
+    function setMode(mode) {
+        if (mode === currentMode && mode !== 'assembly') return;
+        if (mode === 'working') { if (!startWorking()) return; } else stopWorking();
+        currentMode = mode;
+
+        document.querySelectorAll('.mode-btn:not(.rst)').forEach(b => b.classList.remove('active'));
+        const btnId = mode === 'assembly' ? 'btnAssembly' : mode === 'working' ? 'btnWorking' : 'btnDisassembly';
+        document.getElementById(btnId).classList.add('active');
+
+        clearInstr();
+
+        if (mode === 'assembly') {
+            addInstr('<strong>🔨 ASSEMBLY MODE</strong>', 'info');
+            addInstr('Click on components from the left panel to assemble them <strong>one by one</strong> in sequential order.', 'info');
+            addInstr('Watch the <strong>glowing orange indicators</strong> — they show the exact position and area where each component must be placed.', 'info');
+            addInstr('Bolts will secure components with a realistic fixing effect. Copper tubing and wires connect automatically.', 'info');
+            if (nextAsmIdx < COMPS.length) {
+                addInstr(`▶ <strong>Step ${nextAsmIdx + 1}:</strong> ${COMPS[nextAsmIdx].asmText}`, 'next');
+            }
+            showIndicator(nextAsmIdx);
+        } else if (mode === 'working') {
+            addInstr('<strong>⚙️ WORKING MODE — Refrigeration Cycle</strong>', 'info');
+            addInstr('The AC unit is now operating! Observe the complete refrigeration cycle:', 'info');
+            addInstr('1️⃣ <strong>Compressor</strong> pumps high-pressure refrigerant gas through the system (watch it vibrate!).', 'done');
+            addInstr('2️⃣ <strong>Condenser Coil</strong> (outdoor) releases heat. The <strong>Fan</strong> blows hot air outward. 🔴 Red particles = hot gas.', 'done');
+            addInstr('3️⃣ <strong>Expansion Device</strong> rapidly reduces pressure & temperature. 🟠 Orange = warm liquid.', 'done');
+            addInstr('4️⃣ <strong>Evaporator Coil</strong> (indoor) absorbs room heat. The <strong>Blower</strong> circulates cool air. 🔵 Blue = cold refrigerant.', 'done');
+            addInstr('5️⃣ <strong>PCB</strong> controls power distribution to the motor and compressor via wiring.', 'done');
+            addInstr('6️⃣ <strong>Drain System</strong> collects condensation from the evaporator and routes it outdoors.', 'done');
+            addInstr('🔵 Blue arrows = Cool air (indoor) &nbsp; 🔴 Red arrows = Hot air (outdoor)', 'info');
+            hideAllIndicators();
+        } else {
+            addInstr('<strong>🔓 DISASSEMBLY MODE</strong>', 'info');
+            addInstr('Remove components in <strong>reverse order</strong> (last assembled first).', 'info');
+            addInstr('Click the highlighted component in the list to disassemble it.', 'info');
+            const last = getLastAssembled();
+            if (last >= 0) {
+                addInstr(`▶ <strong>Next:</strong> Remove ${COMPS[last].name}. ${COMPS[last].disText}`, 'next');
+            }
+            hideAllIndicators();
+        }
+        updateUI();
+        setStatus(`Mode: ${mode.toUpperCase()}`, '');
+    }
+
+    function clearInstr() { document.getElementById('instrPanel').innerHTML = ''; }
+
+    function addInstr(html, cls) {
+        const el = document.createElement('div');
+        el.className = 'instr-step' + (cls ? ' ' + cls : '');
+        el.innerHTML = html;
+        const panel = document.getElementById('instrPanel');
+        panel.appendChild(el);
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    function setStatus(txt, cls) {
+        const el = document.getElementById('statusBar');
+        el.textContent = txt;
+        el.className = 'status-bar' + (cls ? ' ' + cls : '');
+    }
+
+    function toast(msg, type) {
+        const el = document.createElement('div');
+        el.className = 'toast ' + (type || 'ok');
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2700);
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       RESET
+       ════════════════════════════════════════════════════════════ */
+    function doReset() {
+        if (isAnimating) return;
+        stopWorking();
+
+        for (const id in meshes) scene.remove(meshes[id]);
+        meshes = {};
+        for (const id in boltGroups) boltGroups[id].forEach(b => scene.remove(b));
+        boltGroups = {};
+        for (const id in tubes) scene.remove(tubes[id].mesh);
+        tubes = {};
+        for (const id in shafts) scene.remove(shafts[id]);
+        shafts = {};
+        for (const id in wires) scene.remove(wires[id]);
+        wires = {};
+        hideAllIndicators();
+        assembledSet.clear();
+        nextAsmIdx = 0;
+
+        setMode('assembly');
+        toast('🔄 Reset complete!', 'ok');
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       ANIMATION LOOP
+       ════════════════════════════════════════════════════════════ */
+    function animate() {
+        requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime();
+        controls.update();
+        updateTweens();
+
+
+
+        // Working mode animations
+        if (currentMode === 'working') {
+            // Fan rotation
+            if (meshes['fan']) meshes['fan'].rotation.y += 0.12;
+            // Blower rotation
+            if (meshes['blower']) meshes['blower'].rotation.y += 0.15;
+            // Compressor vibration
+            if (meshes['compressor']) {
+                const cp = COMPS.find(c => c.id === 'compressor');
+                meshes['compressor'].position.x = cp.pos[0] + Math.sin(elapsed * 40) * 0.015;
+                meshes['compressor'].position.z = cp.pos[2] + Math.cos(elapsed * 40) * 0.015;
+            }
+            // Refrigerant particles flow
+            for (const id in particles) {
+                particles[id].children.forEach(p => {
+                    const t = ((elapsed * 0.25 + p.userData.off) % 1);
+                    const pos = p.userData.curve.getPoint(t);
+                    p.position.copy(pos);
+                });
+            }
+            // Airflow arrows pulse
+            arrows.forEach(a => {
+                a.traverse(c => {
+                    if (c.material && c.material.transparent) {
+                        c.material.opacity = 0.3 + 0.4 * Math.abs(Math.sin(elapsed * 2));
+                    }
+                });
+            });
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       RESIZE
+       ════════════════════════════════════════════════════════════ */
+    function onResize() {
+        const c = document.getElementById('viewport');
+        const w = Math.max(c.clientWidth, 1);
+        const h = Math.max(c.clientHeight, 1);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       BOOTSTRAP
+       ════════════════════════════════════════════════════════════ */
+    init().catch(err => {
+        console.error('Init failed:', err);
+        document.getElementById('loadingText').textContent = '❌ Error: ' + err.message;
+        document.getElementById('loadingText').style.color = '#f44336';
+    });
+    </script>
+</body>
+</html>
