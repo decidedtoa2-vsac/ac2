@@ -1046,15 +1046,7 @@
 
     function doPlacementFlash(comp) {
         return; // Glow flash completely removed
-            new THREE.SphereGeometry(0.6, 16, 16),
-            new THREE.MeshBasicMaterial({ color:0xffaa00, transparent:true, opacity:0.5 })
-        );
-        flash.position.set(comp.pos[0], comp.pos[1], comp.pos[2]);
-        scene.add(flash);
-        addTween(0.6, t => {
-            flash.material.opacity = 0.5 * (1 - t);
-            flash.scale.setScalar(1 + t * 3);
-        }, () => scene.remove(flash));
+           
     }
 
     /* ════════════════════════════════════════════════════════════
