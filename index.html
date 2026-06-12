@@ -414,66 +414,60 @@
        CONNECTION DEFINITIONS
        ════════════════════════════════════════════════════════════ */
     // Copper Tubing
-   const TUBE_DEFS = [
+  const TUBE_DEFS = [
 
 {
- id:'comp-cond',
- trigger:'condenser-coil',
- requires:'compressor',
-
- pts:[
-   [4.2,1.5,3.0],
-   [4.2,2.5,3.5],
-   [2.5,2.8,4.0],
-   [0.5,2.0,4.0]
- ],
-
- label:'Compressor → Condenser'
+    id:'comp-cond',
+    trigger:'condenser-coil',
+    requires:'compressor',
+    pts:[
+        [2.5,1.8,2.0],   // compressor
+        [2.5,2.8,4.5],
+        [0.5,2.8,5.5],
+        [-2.5,2.8,5.5],
+        [-4.5,2.5,4.0]   // condenser top
+    ]
 },
 
 {
- id:'cond-exp',
- trigger:'expansion-device',
- requires:'condenser-coil',
-
- pts:[
-   [-0.5,1.0,4.0],
-   [-2.0,1.0,2.5],
-   [-3.0,1.0,1.5],
-   [-4.0,1.2,0.5]
- ],
-
- label:'Condenser → Expansion Device'
+    id:'cond-exp',
+    trigger:'expansion-device',
+    requires:'condenser-coil',
+    pts:[
+        [-4.5,1.2,3.5],  // condenser outlet
+        [-5.5,1.2,1.0],
+        [-5.5,1.2,-2.0],
+        [-3.5,1.2,-4.5],
+        [-1.0,1.2,-5.5],
+        [1.5,1.2,-5.5],
+        [3.0,1.5,-4.0]   // expansion valve
+    ]
 },
 
 {
- id:'exp-evap',
- trigger:'evaporator-coil',
- requires:'expansion-device',
-
- pts:[
-   [-4.0,1.2,0.2],
-   [-3.0,1.0,-1.0],
-   [-2.0,1.0,-2.0],
-   [0.0,1.2,-3.2]
- ],
-
- label:'Expansion Device → Evaporator'
+    id:'exp-evap',
+    trigger:'evaporator-coil',
+    requires:'expansion-device',
+    pts:[
+        [3.0,1.5,-4.0],
+        [4.5,1.5,-3.5],
+        [5.0,1.5,-1.0],
+        [5.0,1.5,2.0],
+        [4.0,1.5,4.0]    // evaporator inlet
+    ]
 },
 
 {
- id:'evap-comp',
- trigger:'evaporator-coil',
- requires:'compressor',
-
- pts:[
-   [1.5,1.0,-3.2],
-   [3.0,0.8,-2.0],
-   [4.0,0.6,0.5],
-   [4.0,0.5,3.0]
- ],
-
- label:'Evaporator → Compressor'
+    id:'evap-comp',
+    trigger:'compressor',
+    requires:'evaporator-coil',
+    pts:[
+        [4.0,0.8,3.0],   // evaporator outlet
+        [3.5,0.8,1.5],
+        [3.0,0.8,0.0],
+        [2.5,0.8,-1.0],
+        [2.5,0.8,2.0]    // compressor return
+    ]
 }
 
 ];
