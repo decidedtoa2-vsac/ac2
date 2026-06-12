@@ -1142,17 +1142,24 @@ if (refrigerationReady) {
 
     function makeTube(td) {
         if (tubes[td.id]) return;
-        const pts = td.pts.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+       const pts = td.pts.map(
+    p => new THREE.Vector3(
+        p[0],
+        p[1] + 0.8,
+        p[2]
+    )
+);
         const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.3);
-        const geo = new THREE.TubeGeometry(curve, 60, 0.12, 16, false);
-       const mat = new THREE.MeshStandardMaterial({
-            color:0xffaa33,
-            metalness:0.95,
-            roughness:0.1,
-            emissive:0xff6600,
-            emissiveIntensity:0.4
+       const geo = new THREE.TubeGeometry(curve, 80, 0.25, 20, false);
+      const mat = new THREE.MeshStandardMaterial({
+    color:0xffaa33,
+    metalness:1.0,
+    roughness:0.05,
+    emissive:0xff6600,
+    emissiveIntensity:0.8
 });
-        const mesh = new THREE.Mesh(geo, mat);
+       const mesh = new THREE.Mesh(geo, mat);
+        mesh.renderOrder = 100;
         mesh.castShadow = true;
         scene.add(mesh);
         tubes[td.id] = { mesh, curve };
