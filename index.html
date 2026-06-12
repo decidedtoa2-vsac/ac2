@@ -1150,19 +1150,28 @@ if (refrigerationReady) {
     )
 );
         const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.3);
-       const geo = new THREE.TubeGeometry(curve, 80, 0.25, 20, false);
-      const mat = new THREE.MeshStandardMaterial({
-    color:0xffaa33,
-    metalness:1.0,
-    roughness:0.05,
-    emissive:0xff6600,
-    emissiveIntensity:0.8
+     const geo = new THREE.TubeGeometry(
+    curve,
+    120,
+    0.45,
+    32,
+    false
+);
+
+const mat = new THREE.MeshBasicMaterial({
+    color:0xff9933
 });
-       const mesh = new THREE.Mesh(geo, mat);
-        mesh.renderOrder = 100;
-        mesh.castShadow = true;
-        scene.add(mesh);
-        tubes[td.id] = { mesh, curve };
+      const mesh = new THREE.Mesh(geo, mat);
+
+mesh.renderOrder = 999;
+mesh.castShadow = true;
+mesh.receiveShadow = true;
+
+scene.add(mesh);
+
+console.log("TUBE CREATED:", td.id);
+
+tubes[td.id] = { mesh, curve };
 
         // Fade-in animation
         mesh.material.transparent = true;
