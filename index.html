@@ -924,9 +924,9 @@ if (geos[1]) {
     const bm = new THREE.Mesh(
         bg,
         new THREE.MeshStandardMaterial({
-            color:0x555555,
-            metalness:0.8,
-            roughness:0.3
+           color:0xffff00,
+           metalness:0.6,
+           roughness:0.4
         })
     );
 
@@ -1144,8 +1144,14 @@ if (refrigerationReady) {
         if (tubes[td.id]) return;
         const pts = td.pts.map(p => new THREE.Vector3(p[0], p[1], p[2]));
         const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.3);
-        const geo = new THREE.TubeGeometry(curve, 28, 0.055, 8, false);
-        const mat = new THREE.MeshStandardMaterial({ color:0xb87333, metalness:0.92, roughness:0.15 });
+        const geo = new THREE.TubeGeometry(curve, 60, 0.12, 16, false);
+       const mat = new THREE.MeshStandardMaterial({
+            color:0xffaa33,
+            metalness:0.95,
+            roughness:0.1,
+            emissive:0xff6600,
+            emissiveIntensity:0.4
+});
         const mesh = new THREE.Mesh(geo, mat);
         mesh.castShadow = true;
         scene.add(mesh);
