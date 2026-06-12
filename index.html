@@ -414,20 +414,69 @@
        CONNECTION DEFINITIONS
        ════════════════════════════════════════════════════════════ */
     // Copper Tubing
-    const TUBE_DEFS = [
-        { id:'comp-cond', trigger:'condenser-coil', requires:'compressor',
-          pts:[[4.0,1.6,3.0],[4.0,3.0,3.5],[2.0,3.2,4.0],[0,2.5,4.0]],
-          label:'Compressor → Condenser (high-pressure hot gas)' },
-        { id:'cond-exp', trigger:'expansion-device', requires:'condenser-coil',
-          pts:[[-2.0,1.2,4.0],[-3.0,1.0,2.5],[-3.5,1.0,1.5],[-4.0,1.2,0.5]],
-          label:'Condenser → Expansion Device (high-pressure liquid)' },
-        { id:'exp-evap', trigger:'evaporator-coil', requires:'expansion-device',
-          pts:[[-4.0,1.2,0.0],[-3.0,1.0,-1.5],[-2.0,1.0,-2.5],[0,1.2,-3.2]],
-          label:'Expansion Device → Evaporator (low-pressure cold)' },
-        { id:'evap-comp', trigger:'evaporator-coil', requires:'compressor',
-          pts:[[2.0,1.2,-3.2],[3.5,0.8,-1.5],[4.5,0.5,1.0],[4.0,0.5,3.0]],
-          label:'Evaporator → Compressor (return line to accumulator)' },
-    ];
+   const TUBE_DEFS = [
+
+{
+ id:'comp-cond',
+ trigger:'condenser-coil',
+ requires:'compressor',
+
+ pts:[
+   [4.2,1.5,3.0],
+   [4.2,2.5,3.5],
+   [2.5,2.8,4.0],
+   [0.5,2.0,4.0]
+ ],
+
+ label:'Compressor → Condenser'
+},
+
+{
+ id:'cond-exp',
+ trigger:'expansion-device',
+ requires:'condenser-coil',
+
+ pts:[
+   [-0.5,1.0,4.0],
+   [-2.0,1.0,2.5],
+   [-3.0,1.0,1.5],
+   [-4.0,1.2,0.5]
+ ],
+
+ label:'Condenser → Expansion Device'
+},
+
+{
+ id:'exp-evap',
+ trigger:'evaporator-coil',
+ requires:'expansion-device',
+
+ pts:[
+   [-4.0,1.2,0.2],
+   [-3.0,1.0,-1.0],
+   [-2.0,1.0,-2.0],
+   [0.0,1.2,-3.2]
+ ],
+
+ label:'Expansion Device → Evaporator'
+},
+
+{
+ id:'evap-comp',
+ trigger:'evaporator-coil',
+ requires:'compressor',
+
+ pts:[
+   [1.5,1.0,-3.2],
+   [3.0,0.8,-2.0],
+   [4.0,0.6,0.5],
+   [4.0,0.5,3.0]
+ ],
+
+ label:'Evaporator → Compressor'
+}
+
+];
     // Motor Shafts
     const SHAFT_DEFS = [
         { id:'motor-blower', trigger:'blower', requires:'fan-motor',
@@ -865,13 +914,28 @@
         if (!geos) return makeFallback(comp);
 
         // Fan body
-        if (geos[1]) {
-            const bg = geos[1].clone();
-            normGeo(bg, 1);
-            const bm = new THREE.Mesh(bg, new THREE.MeshStandardMaterial({ color:0x555555, metalness:0.8, roughness:0.3 }));
-            bm.castShadow = true;
-            g.add(bm);
-        }
+if (geos[1]) {
+    const bg = geos[1].clone();
+
+    console.log("Fan Body Loaded", geos[1]);
+
+    normGeo(bg, 2.5);
+
+    const bm = new THREE.Mesh(
+        bg,
+        new THREE.MeshStandardMaterial({
+            color:0x555555,
+            metalness:0.8,
+            roughness:0.3
+        })
+    );
+
+    bm.position.set(0,0,0);
+    bm.castShadow = true;
+    bm.receiveShadow = true;
+
+    g.add(bm);
+}
         // Fan blade
         if (geos[0]) {
             const fg = geos[0].clone();
@@ -1053,10 +1117,19 @@
        CONNECTIONS — Tubes, Shafts, Wires
        ════════════════════════════════════════════════════════════ */
     function doConnections(triggerId) {
-        TUBE_DEFS.forEach(td => {
-            if (td.trigger === triggerId && assembledSet.has(td.requires)) makeTube(td);
-            if (td.requires === triggerId && assembledSet.has(td.trigger) && !tubes[td.id]) makeTube(td);
-        });
+      const refrigerationReady =
+    assembledSet.has('compressor') &&
+    assembledSet.has('condenser-coil') &&
+    assembledSet.has('expansion-device') &&
+    assembledSet.has('evaporator-coil');
+
+if (refrigerationReady) {
+    TUBE_DEFS.forEach(td => {
+        if (!tubes[td.id]) {
+            makeTube(td);
+        }
+    });
+}
         SHAFT_DEFS.forEach(sd => {
             if (sd.trigger === triggerId && assembledSet.has(sd.requires)) makeShaft(sd);
             if (sd.requires === triggerId && assembledSet.has(sd.trigger) && !shafts[sd.id]) makeShaft(sd);
@@ -1480,7 +1553,15 @@
         // Working mode animations
         if (currentMode === 'working') {
             // Fan rotation
-            if (meshes['fan']) meshes['fan'].rotation.x += 0.12;
+           if (meshes['fan']) {
+
+    const blade = meshes['fan'].getObjectByName('blade');
+
+    if (blade) {
+        blade.rotation.z += 0.25;
+    }
+
+}
             // Blower rotation
             if (meshes['blower']) meshes['blower'].rotation.y += 0.15;
             // Compressor vibration
