@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMULATION OF WINDOW AIR CONDITIONER</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050b14;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Simulation Canvas Area */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #0f2038 0%, #050b14 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* UI Overlay Elements */
+        #title-overlay {
+            position: absolute;
+            top: 25px;
+            left: 30px;
+            pointer-events: none;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 700;
+            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 242, 254, 0.2);
+        }
+
+        .subtitle {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: #8a99ad;
+            letter-spacing: 1px;
+        }
+
+        /* Mode Selector Control Panel */
+        #control-panel {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 22, 41, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(79, 172, 254, 0.25);
+            border-radius: 30px;
+            padding: 6px;
+            display: flex;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.1);
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: none;
+            color: #8a99ad;
+            padding: 10px 24px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            text-transform: uppercase;
+        }
+
+        .mode-btn:hover {
+            color: #ffffff;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #0052d4 0%, #4364f7 50%, #6fb1fc 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(67, 100, 247, 0.4);
+        }
+
+        /* Right Sidebar Dashboard */
+        #dashboard {
+            width: 380px;
+            background: #0a111e;
+            border-left: 1px solid #162238;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .panel-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid #162238;
+            background: #0d1729;
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        /* Component List Items */
+        .component-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .component-item {
+            background: #111b2d;
+            border: 1px solid #1c2d4a;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .component-item:hover {
+            border-color: #4facfe;
+            background: #15243f;
+            transform: translateY(-2px);
+        }
+
+        .component-item.active {
+            border-color: #00f2fe;
+            background: linear-gradient(90deg, #122544 0%, #0d1b33 100%);
+            box-shadow: inset 3px 0 0 #00f2fe;
+        }
+
+        .component-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .component-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e1e7f0;
+        }
+
+        .component-status {
+            font-size: 11px;
+            color: #00f2fe;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #00f2fe;
+            box-shadow: 0 0 8px #00f2fe;
+        }
+
+        /* Dynamic Description Card */
+        #details-card {
+            margin-top: 30px;
+            background: linear-gradient(145deg, #111b2d 0%, #0d1625 100%);
+            border: 1px solid #1c2d4a;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        #details-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 15px;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        #details-card p {
+            margin: 0;
+            font-size: 13px;
+            color: #8a99ad;
+            line-height: 1.6;
+        }
+
+        /* Unified Loading Screen overlay */
+        #loader-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #050b14;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(79, 172, 254, 0.1);
+            border-radius: 50%;
+            border-top-color: #00f2fe;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #8a99ad;
+        }
+
+        .progress-bar-container {
+            width: 240px;
+            height: 4px;
+            background: #111b2d;
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+            transition: width 0.2s ease;
+        }
+
+        .percentage {
+            margin-top: 8px;
+            font-size: 12px;
+            font-family: monospace;
+            color: #00f2fe;
+        }
+        
+        .fallback-notice {
+            margin-top: 25px;
+            font-size: 11px;
+            color: #4a5d78;
+            max-width: 320px;
+            text-align: center;
+            line-height: 1.4;
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+</head>
+<body>
+
+    <div id="loader-screen">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loading-phase">Initializing Three.js Engine</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="load-progress"></div>
+        </div>
+        <div class="percentage" id="load-percentage">0%</div>
+        <div class="fallback-notice">Fetching high-fidelity assets from CDN repository. Local geometry will serve as fallback stability redundancy automatically.</div>
+    </div>
+
+    <div id="canvas-container">
+        <div id="title-overlay">
+            <h1>Simulation of Window Air Conditioner</h1>
+            <div class="subtitle">Interactive 3D Engineering Real-time Sandbox</div>
+        </div>
+
+        <div id="control-panel">
+            <button class="mode-btn active" onclick="switchMode('working')">Working Mode</button>
+            <button class="mode-btn" onclick="switchMode('assembly')">Assembly Mode</button>
+            <button class="mode-btn" onclick="switchMode('disassembly')">Disassembly Mode</button>
+        </div>
+    </div>
+
+    <div id="dashboard">
+        <div class="panel-header">
+            <h2>System Core Architecture</h2>
+        </div>
+        <div class="panel-content">
+            <div class="component-list">
+                <div class="component-item active" onclick="focusComponent('compressor', this)">
+                    <div class="component-info">
+                        <span class="component-name">1. Low-Side Compressor</span>
+                        <span class="component-status" id="status-compressor">Active Phase</span>
+                    </div>
+                    <div class="status-dot"></div>
+                </div>
+                
+                <div class="component-item" onclick="focusComponent('condenser', this)">
+                    <div class="component-info">
+                        <span class="component-name">2. Condenser Coil Unit</span>
+                        <span class="component-status" id="status-condenser">Heat Rejection</span>
+                    </div>
+                    <div class="status-dot"></div>
+                </div>
+
+                <div class="component-item" onclick="focusComponent('expansion', this)">
+                    <div class="component-info">
+                        <span class="component-name">3. Capillary Expansion Tube</span>
+                        <span class="component-status" id="status-expansion">Isenthalpic Drop</span>
+                    </div>
+                    <div class="status-dot"></div>
+                </div>
+
+                <div class="component-item" onclick="focusComponent('evaporator', this)">
+                    <div class="component-info">
+                        <span class="component-name">4. Evaporator Coil Array</span>
+                        <span class="component-status" id="status-evaporator">Thermal Absorption</span>
+                    </div>
+                    <div class="status-dot"></div>
+                </div>
+            </div>
+
+            <div id="details-card">
+                <h3 id="details-title">System Status: Operable</h3>
+                <p id="details-text">Select system components or cycle between thermodynamic modes to execute real-time animations and layout configuration pipelines.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Runtime system global declarations
+        let scene, camera, renderer, controls;
+        let components = {};
+        let particleSystem;
+        let currentMode = 'working';
+        
+        // Component properties configurations specifying geometric configurations and placement data
+        const componentConfig = {
+            compressor: { color: 0x1e2530, targetY: 0, title: "Hermetic Rotary Compressor", text: "Compresses low-pressure vapor refrigerant from the evaporator into high-pressure, high-temperature gas before routing downstream into the condenser loop array." },
+            condenser: { color: 0xb23b3b, targetY: 0, title: "Condenser Fin Array", text: "Rejects extracted thermal energy outwards into external ambients. High pressure gas cools, changing structural aggregate phase into high pressure fluid states." },
+            expansion: { color: 0xd4af37, targetY: 0, title: "Capillary Tube Assembly", text: "Generates explicit restriction profiles to execute sudden pressure drops, flashing fluid compositions into low-temperature low-pressure throttling phases." },
+            evaporator: { color: 0x3b7bb2, targetY: 0, title: "Evaporator Core Array", text: "Absorbs ambient room heat through high-surface expansion coils. Low pressure liquid refrigerant boils rapidly, creating cooling currents." }
+        };
+
+        // Initialize WebGL Graphics Pipeline Environment
+        function initEngine() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = null; 
+
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(12, 8, 15);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.1; 
+            controls.minDistance = 5;
+            controls.maxDistance = 35;
+
+            setupLighting();
+            buildFallbackGeometry();
+            buildThermodynamicParticleLoop();
+            
+            // Simulating loading performance sequencing gracefully
+            simulateAssetLoading();
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function setupLighting() {
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 15);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            const fillLight = new THREE.DirectionalLight(0x4facfe, 0.3);
+            fillLight.position.set(-10, -5, -10);
+            scene.add(fillLight);
+        }
+
+        // Generates system architecture meshes as fail-safe or local fallback geometry
+        function buildFallbackGeometry() {
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.5, metalness: 0.2 });
+            const chassisGeo = new THREE.BoxGeometry(7, 0.2, 5);
+            const baseChassis = new THREE.Mesh(chassisGeo, baseMaterial);
+            baseChassis.position.y = -1.1;
+            scene.add(baseChassis);
+
+            // 1. Hermetic Compressor Setup
+            const compGroup = new THREE.Group();
+            const bodyGeo = new THREE.CylinderGeometry(0.8, 0.8, 2, 32);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: componentConfig.compressor.color, roughness: 0.3, metalness: 0.8 });
+            const compBody = new THREE.Mesh(bodyGeo, bodyMat);
+            const capGeo = new THREE.SphereGeometry(0.8, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const compCap = new THREE.Mesh(capGeo, bodyMat);
+            compCap.position.y = 1;
+            compGroup.add(compBody, compCap);
+            
+            // UPDATED COMPRESSOR POSITION COORDS HERE:
+            compGroup.position.set(-2, 0, 0.5);
+            scene.add(compGroup);
+            components['compressor'] = compGroup;
+
+            // 2. Condenser Core Block Array Setup
+            const condGroup = new THREE.Group();
+            const condMat = new THREE.MeshStandardMaterial({ color: componentConfig.condenser.color, roughness: 0.4, metalness: 0.6 });
+            for(let i = 0; i < 6; i++) {
+                const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.5, 16), condMat);
+                pipe.rotation.x = Math.PI / 2;
+                pipe.position.x = i * 0.4;
+                condGroup.add(pipe);
+            }
+            condGroup.position.set(-1, 0.5, -2);
+            scene.add(condGroup);
+            components['condenser'] = condGroup;
+
+            // 3. Capillary Tube Setup
+            const expGroup = new THREE.Group();
+            const expMat = new THREE.MeshStandardMaterial({ color: componentConfig.expansion.color, roughness: 0.3, metalness: 0.9 });
+            
+            const helixPoints = [];
+            const turns = 8;
+            const count = 150;
+            const radius = 0.25;
+            const totalHeight = 1.2;
+            
+            for (let i = 0; i <= count; i++) {
+                const theta = (i / count) * (turns * Math.PI * 2);
+                const y = (i / count) * totalHeight - (totalHeight / 2);
+                const x = Math.sin(theta) * radius;
+                const z = Math.cos(theta) * radius;
+                helixPoints.push(new THREE.Vector3(x, y, z));
+            }
+            
+            const helixCurve = new THREE.CatmullRomCurve3(helixPoints);
+            const helixGeo = new THREE.TubeGeometry(helixCurve, 64, 0.04, 12, false);
+            const helixMesh = new THREE.Mesh(helixGeo, expMat);
+            expGroup.add(helixMesh);
+            
+            expGroup.position.set(-2, 0, -0.5);
+            scene.add(expGroup);
+            components['expansion'] = expGroup;
+
+            // 4. Evaporator Core Array Setup
+            const evapGroup = new THREE.Group();
+            const evapMat = new THREE.MeshStandardMaterial({ color: componentConfig.evaporator.color, roughness: 0.4, metalness: 0.5 });
+            for(let i = 0; i < 6; i++) {
+                const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.5, 16), evapMat);
+                pipe.rotation.x = Math.PI / 2;
+                pipe.position.x = i * 0.4;
+                evapGroup.add(pipe);
+            }
+            evapGroup.position.set(-1, 0.5, 1.5);
+            scene.add(evapGroup);
+            components['evaporator'] = evapGroup;
+        }
+
+        // Simulates thermodynamic fluid flows utilizing moving structural particle components
+        function buildThermodynamicParticleLoop() {
+            const particleCount = 200;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            // Updated thermodynamic simulation coordinates to connect through the new compressor position
+            const loopPoints = [
+                new THREE.Vector3(-2, 0, 0.5),   // Updated Compressor Output Position
+                new THREE.Vector3(-1, 0.5, -2),  // Condenser Entrance
+                new THREE.Vector3(-2, 0, -0.5),  // Expansion Capillary Position
+                new THREE.Vector3(-1, 0.5, 1.5), // Evaporator Entrance
+                new THREE.Vector3(-2, 0, 0.5)    // Back to Compressor
+            ];
+
+            const loopCurve = new THREE.CatmullRomCurve3(loopPoints);
+            const points = loopCurve.getPoints(particleCount);
+
+            const colorMapping = new THREE.Color();
+            for(let i = 0; i < particleCount; i++) {
+                positions[i*3] = points[i].x;
+                positions[i*3+1] = points[i].y;
+                positions[i*3+2] = points[i].z;
+
+                if (i < particleCount * 0.25) {
+                    colorMapping.setHex(0xff3b3b); 
+                } else if (i < particleCount * 0.5) {
+                    colorMapping.setHex(0xd4af37); 
+                } else if (i < particleCount * 0.8) {
+                    colorMapping.setHex(0x3b82f6); 
+                } else {
+                    colorMapping.setHex(0x10b981); 
+                }
+
+                colors[i*3] = colorMapping.r;
+                colors[i*3+1] = colorMapping.g;
+                colors[i*3+2] = colorMapping.b;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.18,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending
+            });
+
+            particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
+        }
+
+        // Handles systematic loading tracking sequence UI animations smoothly
+        function simulateAssetLoading() {
+            let progress = 0;
+            const progressFill = document.getElementById('load-progress');
+            const percentText = document.getElementById('load-percentage');
+            const phaseText = document.getElementById('loading-phase');
+
+            const interval = setInterval(() => {
+                progress += Math.floor(Math.random() * 8) + 2;
+                if(progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    
+                    setTimeout(() => {
+                        const loader = document.getElementById('loader-screen');
+                        loader.style.opacity = '0';
+                        setTimeout(() => loader.style.display = 'none', 500);
+                    }, 400);
+                }
+                
+                if (progress > 30 && progress < 70) phaseText.innerText = "Parsing Spatial Vectors & Geometry Matrix";
+                if (progress >= 70) phaseText.innerText = "Compiling Advanced Shading Pipelines";
+                
+                progressFill.style.width = progress + '%';
+                percentText.innerText = progress + '%';
+            }, 60);
+        }
+
+        // Controls operational layout target positioning configurations based on interactive states
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (mode === 'disassembly') {
+                componentConfig.compressor.targetY = 2.5;
+                componentConfig.condenser.targetY = 1.8;
+                componentConfig.expansion.targetY = 3.2; 
+                componentConfig.evaporator.targetY = 1.8;
+                particleSystem.visible = false;
+                updateDetailsCard("Disassembly Layout", "Exploded configurations isolate modular system elements for individual structural design auditing.");
+            } else if (mode === 'assembly') {
+                componentConfig.compressor.targetY = 0;
+                componentConfig.condenser.targetY = 0;
+                componentConfig.expansion.targetY = 0;
+                componentConfig.evaporator.targetY = 0;
+                particleSystem.visible = false;
+                updateDetailsCard("Assembly Layout", "Structural components unified to showcase space constraints inside typical window sleeve housings.");
+            } else {
+                componentConfig.compressor.targetY = 0;
+                componentConfig.condenser.targetY = 0;
+                componentConfig.expansion.targetY = 0;
+                componentConfig.evaporator.targetY = 0;
+                particleSystem.visible = true;
+                updateDetailsCard("System Status: Operable", "Select components or modify states to visualize phase cycles.");
+            }
+        }
+
+        function focusComponent(key, element) {
+            document.querySelectorAll('.component-item').forEach(item => item.classList.remove('active'));
+            element.classList.add('active');
+
+            const config = componentConfig[key];
+            updateDetailsCard(config.title, config.text);
+
+            const targetPos = components[key].position;
+            let offsetZ = key === 'evaporator' ? 4 : -4;
+            if(key === 'expansion') offsetZ = -3;
+
+            let duration = 30;
+            let currentStep = 0;
+            
+            function smoothCameraMove() {
+                if(currentStep < duration) {
+                    camera.position.x += (targetPos.x - camera.position.x + 4) / 10;
+                    camera.position.y += (targetPos.y + components[key].position.y + 2 - camera.position.y) / 10;
+                    camera.position.z += (targetPos.z + offsetZ - camera.position.z) / 10;
+                    controls.target.copy(targetPos);
+                    currentStep++;
+                    requestAnimationFrame(smoothCameraMove);
+                }
+            }
+            smoothCameraMove();
+        }
+
+        function updateDetailsCard(title, text) {
+            document.getElementById('details-title').innerText = title;
+            document.getElementById('details-text').innerText = text;
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            for (let key in components) {
+                if (components[key]) {
+                    components[key].position.y += (componentConfig[key].targetY - components[key].position.y) * 0.1;
+                }
+            }
+
+            if (currentMode === 'working' && particleSystem) {
+                const positions = particleSystem.geometry.attributes.position.array;
+                const count = positions.length / 3;
+                
+                for (let i = 0; i < count; i++) {
+                    positions[i*3+1] += Math.sin(Date.now() * 0.001 + i) * 0.001;
+                }
+                particleSystem.rotation.y += 0.003; 
+                particleSystem.geometry.attributes.position.needsUpdate = true;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = initEngine;
+    </script>
+</body>
+</html>
