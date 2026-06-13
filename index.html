@@ -414,63 +414,24 @@
        CONNECTION DEFINITIONS
        ════════════════════════════════════════════════════════════ */
     // Copper Tubing
-  const TUBE_DEFS = [
-
-{
-    id:'comp-cond',
-    trigger:'condenser-coil',
-    requires:'compressor',
-    pts:[
-        [2.5,1.8,2.0],   // compressor
-        [2.5,2.8,4.5],
-        [0.5,2.8,5.5],
-        [-2.5,2.8,5.5],
-        [-4.5,2.5,4.0]   // condenser top
-    ]
-},
-
-{
-    id:'cond-exp',
-    trigger:'expansion-device',
-    requires:'condenser-coil',
-    pts:[
-        [-4.5,1.2,3.5],  // condenser outlet
-        [-5.5,1.2,1.0],
-        [-5.5,1.2,-2.0],
-        [-3.5,1.2,-4.5],
-        [-1.0,1.2,-5.5],
-        [1.5,1.2,-5.5],
-        [3.0,1.5,-4.0]   // expansion valve
-    ]
-},
-
-{
-    id:'exp-evap',
-    trigger:'evaporator-coil',
-    requires:'expansion-device',
-    pts:[
-        [3.0,1.5,-4.0],
-        [4.5,1.5,-3.5],
-        [5.0,1.5,-1.0],
-        [5.0,1.5,2.0],
-        [4.0,1.5,4.0]    // evaporator inlet
-    ]
-},
-
-{
-    id:'evap-comp',
-    trigger:'compressor',
-    requires:'evaporator-coil',
-    pts:[
-        [4.0,0.8,3.0],   // evaporator outlet
-        [3.5,0.8,1.5],
-        [3.0,0.8,0.0],
-        [2.5,0.8,-1.0],
-        [2.5,0.8,2.0]    // compressor return
-    ]
-}
-
-];
+ const TUBE_DEFS = [
+        // 1. Compressor top discharge → Condenser coil upper knob (near end)
+        { id:'comp-cond', trigger:'condenser-coil', requires:'compressor',
+          from:[4.0, 1.9, 2.6], to:[0.3, 2.6, 2.0], color:0xff6600,
+          label:'Compressor → Condenser Upper Knob (high-pressure hot gas)' },
+        // 2. Condenser coil lower end (other end) → Expansion Device
+        { id:'cond-exp', trigger:'expansion-device', requires:'condenser-coil',
+          from:[0.3, 0.5, 5.8], to:[-3.6, 1.5, 0.7], color:0xff6600,
+          label:'Condenser Lower End → Expansion Device (high-pressure liquid)' },
+        // 3. Expansion Device outlet → Evaporator coil upper knob
+        { id:'exp-evap', trigger:'evaporator-coil', requires:'expansion-device',
+          from:[-3.6, 1.5, 0.3], to:[0.3, 2.6, -1.0], color:0xff6600,
+          label:'Expansion Device → Evaporator Upper Knob (low-pressure cold)' },
+        // 4. Evaporator coil lower end → Compressor accumulator (small nozzle on top of accumulator can)
+        { id:'evap-comp', trigger:'evaporator-coil', requires:'compressor',
+          from:[0.3, 0.5, -5.8], to:[3.3, 1.6, 3.0], color:0xff6600,
+          label:'Evaporator Lower End → Compressor Accumulator (return suction gas)' },
+    ];
     // Motor Shafts
     const SHAFT_DEFS = [
         { id:'motor-blower', trigger:'blower', requires:'fan-motor',
