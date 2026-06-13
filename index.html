@@ -975,13 +975,22 @@ if (geos[1]) {
         isAnimating = true;
         if (indicators[comp.id]) { scene.remove(indicators[comp.id]); delete indicators[comp.id]; }
 
-        const mesh = makeMesh(comp);
+       const mesh = makeMesh(comp);
         mesh.position.set(comp.pos[0], comp.pos[1] + 6, comp.pos[2]);
         if (comp.rot) mesh.rotation.set(comp.rot[0], comp.rot[1], comp.rot[2]);
         scene.add(mesh);
         meshes[comp.id] = mesh;
 
-        const startY = comp.pos[1] + 6, endY = comp.pos[1];
+        // Snap compressor / expansion device so their bottom sits on the base pan (y=0.4)
+        let restY = comp.pos[1];
+        if (comp.id === 'compressor' || comp.id === 'expansion-device') {
+            const bbox = new THREE.Box3().setFromObject(mesh);
+            const bottomOffset = bbox.min.y - mesh.position.y; // distance from pivot to bottom (negative)
+            restY = 0.4 - bottomOffset;
+            comp.pos[1] = restY; // keep vibration/animation refs consistent
+        }
+
+        const startY = restY + 6, endY = restY;
         addTween(1.2, t => {
             mesh.position.y = startY + (endY - startY) * easeOutBounce(t);
         }, () => {
