@@ -933,10 +933,18 @@ if (geos[1]) {
             return;
         }
 
-        isAnimating = true;
+      isAnimating = true;
         if (indicators[comp.id]) { scene.remove(indicators[comp.id]); delete indicators[comp.id]; }
 
-       const mesh = makeMesh(comp);
+        let mesh;
+        try {
+            mesh = makeMesh(comp);
+        } catch (err) {
+            console.error(`Error creating mesh for ${comp.id}:`, err);
+            toast(`⚠️ Error placing ${comp.name}: ${err.message}`, 'wrn');
+            isAnimating = false;
+            return;
+        }
         mesh.position.set(comp.pos[0], comp.pos[1] + 6, comp.pos[2]);
         if (comp.rot) mesh.rotation.set(comp.rot[0], comp.rot[1], comp.rot[2]);
         scene.add(mesh);
